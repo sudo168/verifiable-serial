@@ -187,8 +187,8 @@ public class VerifiableSerial {
         System.out.println(BASE_CHARS.length());
         long start = System.currentTimeMillis();
 
-        int codeLength = 9;
-        int actId = 0;
+        int codeLength = 6;
+        int actId = 3;
 
         // 验证重复率
         int repeat = 0;

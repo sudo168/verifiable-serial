@@ -4,3 +4,18 @@
 电商系统必备工具.
 
 对算法有问题欢迎咨询探讨...2499325873
+
+[demo] in main
+
+int actId = 3;
+
+int codeLength = 6;
+
+String code = create(actId, codeLength);
+
+System.out.println("code: " + code);// code: 6A396WW
+
+System.out.println("verify: " + verify(code, actId > 0)); // verify: true
+
+System.out.println("actId: " + getActId(code)); // actId: 3
+
