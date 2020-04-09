@@ -75,16 +75,16 @@ public class SteerableSerial {
             System.out.println(code + " " + verify);
         });
         /*  输出结果：
-            ej8K234JcV true
-            k7892HAAPK true
-            678Ds3JWHA true
-            6qzXk3v56E true
-            A7e9wd4Wz7 true
-            ME89xL4B6g true
-            VU89MDU56R true
-            NnA9P34Xb7 true
-            6y8f2jt5zB true
-            6awUP34X6r true
+            2X4Y67ezRP true
+            WU4t678vvz true
+            nv4K67DJ2F true
+            EG4gE7ib23 true
+            2tP56Cz9yG true
+            2X4dP7hib3 true
+            u3y5ik89kR true
+            23M56viHfS true
+            k3gpUZ89U3 true
+            23DM6zgW2H true
          */
     }
 }
