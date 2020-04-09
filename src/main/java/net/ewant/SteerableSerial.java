@@ -2,7 +2,12 @@ package net.ewant;
 
 import java.util.Random;
 import java.util.stream.IntStream;
-
+/**
+ * 可根据配置生成指定 数字n+字母m 组合
+ * 重复率为：1/(Math.pow(8,4) * Math.pow(48, 6)) ～= 0.000000000002%
+ * 注意：使用时，建议打乱基准字符顺序，或者可根据情况自行把IOol01这几个易混淆字符加上
+ *      如果加上01记得verify方法的判断范围稍微扩大一下
+ */
 public class SteerableSerial {
     private static final String BASE_NUMS = "23456789";
     private static final String BASE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz";
