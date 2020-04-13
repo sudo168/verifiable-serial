@@ -10,25 +10,45 @@ import java.util.stream.IntStream;
  */
 public class SnowFlake {
     // 起始的时间戳(时间戳占41位)
-    private final static long START_TIMESTAMP = 1586765555888L;//1480166465631L;
+    private final static long START_TIMESTAMP = 1586765555888L;
     // 每一部分占用的位数，就三个（共22位）
-    private final static long SEQUENCE_BIT = 12;// 序列号占用的位数
-    private final static long MACHINE_BIT = 5; // 机器标识占用的位数
-    private final static long DATA_CENTER_BIT = 5;// 数据中心占用的位数
+    private int SEQUENCE_BIT = 12;// 序列号占用的位数
+    private int MACHINE_BIT = 5; // 机器标识占用的位数
+    private int DATA_CENTER_BIT = 5;// 数据中心占用的位数
     // 每一部分最大值
-    private final static long MAX_DATA_CENTER = -1L ^ (-1L << DATA_CENTER_BIT);
-    private final static long MAX_MACHINE = -1L ^ (-1L << MACHINE_BIT);
-    private final static long MAX_SEQUENCE = -1L ^ (-1L << SEQUENCE_BIT);
+    private long MAX_DATA_CENTER = -1L ^ (-1L << DATA_CENTER_BIT);
+    private long MAX_MACHINE = -1L ^ (-1L << MACHINE_BIT);
+    private long MAX_SEQUENCE = -1L ^ (-1L << SEQUENCE_BIT);
     // 每一部分向左的位移
-    private final static long MACHINE_LEFT_SHIFT = SEQUENCE_BIT;
-    private final static long DATA_CENTER_LEFT_SHIFT = SEQUENCE_BIT + MACHINE_BIT;
-    private final static long TIMESTAMP_LEFT_SHIFT = DATA_CENTER_LEFT_SHIFT + DATA_CENTER_BIT;
+    private int MACHINE_LEFT_SHIFT = SEQUENCE_BIT;
+    private int DATA_CENTER_LEFT_SHIFT = SEQUENCE_BIT + MACHINE_BIT;
+    private int TIMESTAMP_LEFT_SHIFT = DATA_CENTER_LEFT_SHIFT + DATA_CENTER_BIT;
+    
     private long dataCenterId; // 数据中心
     private long machineId; // 机器标识
     private long sequence = 0L; // 序列号
     private long lastTimestamp = -1L;// 上一次时间戳
 
     public SnowFlake(long dataCenterId, long machineId) {
+        this(dataCenterId, DATA_CENTER_BIT, machineId, MACHINE_BIT);
+    }
+
+    public SnowFlake(long dataCenterId, int dataCenterBits, long machineId, int machineBits) {
+        DATA_CENTER_BIT = dataCenterBits;
+        MACHINE_BIT = machineBits;
+        SEQUENCE_BIT = Math.min(22 - DATA_CENTER_BIT - MACHINE_BIT, 14);//最大14位够用了，不要怀疑，这里是min函数没错
+        if(SEQUENCE_BIT < 8){// 最小8位，保证同一毫秒有足够的空间
+            throw new IllegalArgumentException("Invalid SEQUENCE_BIT size: " + SEQUENCE_BIT);
+        }
+        // 每一部分最大值
+        MAX_DATA_CENTER = -1L ^ (-1L << DATA_CENTER_BIT);
+        MAX_MACHINE = -1L ^ (-1L << MACHINE_BIT);
+        MAX_SEQUENCE = -1L ^ (-1L << SEQUENCE_BIT);
+        // 每一部分向左的位移
+        MACHINE_LEFT_SHIFT = SEQUENCE_BIT;
+        DATA_CENTER_LEFT_SHIFT = SEQUENCE_BIT + MACHINE_BIT;
+        TIMESTAMP_LEFT_SHIFT = DATA_CENTER_LEFT_SHIFT + DATA_CENTER_BIT;
+
         if (dataCenterId > MAX_DATA_CENTER || dataCenterId < 0) {
             throw new IllegalArgumentException("Argument 'dataCenterId' can't be greater than MAX_DATA_CENTER[" + MAX_DATA_CENTER + "] or less than 0");
         }
@@ -81,7 +101,7 @@ public class SnowFlake {
 
 
     public static void main(String[] args) {
-        SnowFlake snowFlake = new SnowFlake(0, 127);
+        SnowFlake snowFlake = new SnowFlake(0, 0);
         System.out.println(System.currentTimeMillis());
         IntStream.range(0, 100).forEach(i->{
             long l = snowFlake.nextId();
