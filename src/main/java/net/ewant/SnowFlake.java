@@ -7,11 +7,16 @@ import java.util.stream.IntStream;
  * 时间戳占41位
  * 剩下22位分别给：数据中心 + 机器 + 序列号
  * 1 00000000000000000000000000000000000000000 00000 00000 000000000000
+ *
+ * 默认的雪花算法是41 + 22，可以根据自己的需求进行调整。
+ * 时间戳位数决定使用年限（即用多久后：ID就会重复），
+ * 数据中心和机器ID位数决定横向扩展性，
+ * 序列号位数决定适用性能（TPS）
  */
 public class SnowFlake {
-    // 起始的时间戳(时间戳占41位)
+    // 起始的时间戳
     private final static long START_TIMESTAMP = 1586765555888L;
-    // 每一部分占用的位数，就三个（共22位）
+    // 每一部分占用的位数
     private int SEQUENCE_BIT;// 序列号占用的位数
     private int MACHINE_BIT; // 机器标识占用的位数
     private int DATA_CENTER_BIT;// 数据中心占用的位数
@@ -27,17 +32,20 @@ public class SnowFlake {
     private long dataCenterId; // 数据中心
     private long machineId; // 机器标识
     private long sequence = 0L; // 序列号
-    private long lastTimestamp = -1L;// 上一次时间戳
+    private long lastTimestamp = -1L; // 上一次时间戳
 
     public SnowFlake(long dataCenterId, long machineId) {
-        this(dataCenterId, 5, machineId, 5);
+        this(dataCenterId, 4, machineId, 4);
     }
 
     public SnowFlake(long dataCenterId, int dataCenterBits, long machineId, int machineBits) {
-        DATA_CENTER_BIT = dataCenterBits;
-        MACHINE_BIT = machineBits;
-        SEQUENCE_BIT = Math.min(22 - DATA_CENTER_BIT - MACHINE_BIT, 14);//最大14位够用了，不要怀疑，这里是min函数没错
-        if(SEQUENCE_BIT < 8){// 最小8位，保证同一毫秒有足够的空间
+        if(dataCenterBits < 0 || (dataCenterBits == 0 && dataCenterId >= 0)) throw new IllegalArgumentException("Invalid 'dataCenterId' and 'dataCenterBits' setting.");
+        if(machineBits < 0 || (machineBits == 0 && dataCenterId >= 0)) throw new IllegalArgumentException("Invalid 'machineId' and 'machineBits' setting.");
+        if(dataCenterId >= 0) DATA_CENTER_BIT = dataCenterBits;
+        if(machineId >= 0) MACHINE_BIT = machineBits;
+        // SEQUENCE_BIT做如下限制以后，建议DATA_CENTER_BIT + MACHINE_BIT <= 8
+        SEQUENCE_BIT = Math.min(22 - DATA_CENTER_BIT - MACHINE_BIT, 10);//最大10位够用了（100w/s TPS）。不要怀疑，这里是min函数没错
+        if(SEQUENCE_BIT < 7){// 最小7位，保证同一毫秒有足够的空间（10w/s TPS）
             throw new IllegalArgumentException("Invalid SEQUENCE_BIT size: " + SEQUENCE_BIT);
         }
         // 每一部分最大值
@@ -49,14 +57,14 @@ public class SnowFlake {
         DATA_CENTER_LEFT_SHIFT = SEQUENCE_BIT + MACHINE_BIT;
         TIMESTAMP_LEFT_SHIFT = DATA_CENTER_LEFT_SHIFT + DATA_CENTER_BIT;
 
-        if (dataCenterId > MAX_DATA_CENTER || dataCenterId < 0) {
-            throw new IllegalArgumentException("Argument 'dataCenterId' can't be greater than MAX_DATA_CENTER[" + MAX_DATA_CENTER + "] or less than 0");
+        if (dataCenterId > MAX_DATA_CENTER) {
+            throw new IllegalArgumentException("Argument 'dataCenterId' can't be greater than MAX_DATA_CENTER[" + MAX_DATA_CENTER + "]");
         }
-        if (machineId > MAX_MACHINE || machineId < 0) {
-            throw new IllegalArgumentException("Argument 'machineId' can't be greater than MAX_MACHINE[" + MAX_MACHINE + "] or less than 0");
+        if (machineId > MAX_MACHINE) {
+            throw new IllegalArgumentException("Argument 'machineId' can't be greater than MAX_MACHINE[" + MAX_MACHINE + "]");
         }
-        this.dataCenterId = dataCenterId;
-        this.machineId = machineId;
+        this.dataCenterId = dataCenterId < 0 ? 0 : dataCenterId;
+        this.machineId = machineId < 0 ? 0 : machineId;
     }
 
     /**
@@ -83,11 +91,11 @@ public class SnowFlake {
         }
 
         lastTimestamp = currentTime;
-        //就是用相对毫秒数、机器ID和自增序号拼接
+        //用相对毫秒数、数据中心、机器ID和自增序号拼接
         return (currentTime - START_TIMESTAMP) << TIMESTAMP_LEFT_SHIFT //时间戳部分
-                | dataCenterId << DATA_CENTER_LEFT_SHIFT      //数据中心部分
-                | machineId << MACHINE_LEFT_SHIFT            //机器标识部分
-                | sequence;                            //序列号部分
+                | dataCenterId << DATA_CENTER_LEFT_SHIFT               //数据中心部分
+                | machineId << MACHINE_LEFT_SHIFT                      //机器标识部分
+                | sequence;                                            //序列号部分
     }
 
     private long getNextMill() {
@@ -111,7 +119,7 @@ public class SnowFlake {
         int maxChars = 10;
         long timeMax = ((long) Math.pow(62, maxChars) - 1) >> snowFlake.TIMESTAMP_LEFT_SHIFT;
         double maxYears = timeMax / (365.00 * 24 * 3600 * 1000);
-        System.out.println("采用雪花算法与Base62生成" + maxChars + "位字符，最大使用年限：" + maxYears);
+        System.out.println("采用改装后的雪花算法与Base62生成" + maxChars + "位字符，最大使用年限：" + maxYears);
         // 要想增加使用年限，使TIMESTAMP_LEFT_SHIFT变小即可
     }
 }
