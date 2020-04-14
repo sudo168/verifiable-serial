@@ -9,7 +9,7 @@ import java.util.stream.IntStream;
  * 1 00000000000000000000000000000000000000000 00000 00000 000000000000
  *
  * 默认的雪花算法是41 + 22，可以根据自己的需求进行调整。
- * 时间戳位数决定使用年限（即用多久后：ID就会重复），
+ * 时间戳位数决定使用年限，
  * 数据中心和机器ID位数决定横向扩展性，
  * 序列号位数决定适用性能（TPS）
  */
@@ -33,6 +33,8 @@ public class SnowFlake {
     private long machineId; // 机器标识
     private long sequence = 0L; // 序列号
     private long lastTimestamp = -1L; // 上一次时间戳
+
+    private long minStep;
 
     public SnowFlake(long dataCenterId, long machineId) {
         this(dataCenterId, 4, machineId, 4);
@@ -92,7 +94,7 @@ public class SnowFlake {
 
         lastTimestamp = currentTime;
         //用相对毫秒数、数据中心、机器ID和自增序号拼接
-        return (currentTime - START_TIMESTAMP) << TIMESTAMP_LEFT_SHIFT //时间戳部分
+        return (currentTime - START_TIMESTAMP + minStep) << TIMESTAMP_LEFT_SHIFT //时间戳部分
                 | dataCenterId << DATA_CENTER_LEFT_SHIFT               //数据中心部分
                 | machineId << MACHINE_LEFT_SHIFT                      //机器标识部分
                 | sequence;                                            //序列号部分
@@ -106,20 +108,54 @@ public class SnowFlake {
         return mill;
     }
 
-
+    public void setMinStep(long minStep) {
+        if(minStep < 0){
+            throw new IllegalArgumentException("Invalid min time step: " + minStep);
+        }
+        this.minStep = (minStep >> TIMESTAMP_LEFT_SHIFT);
+    }
 
     public static void main(String[] args) {
         SnowFlake snowFlake = new SnowFlake(0, 0);
         System.out.println(System.currentTimeMillis());
-        IntStream.range(0, 100).forEach(i->{
+        IntStream.range(0, 10).forEach(i->{
             long l = snowFlake.nextId();
-            System.out.println(l + "->" + Base62.encode(l));
+            String encode = Base62.encode(l);
+            System.out.println(l + "->" + encode + "->" + Base62.decodeToLong(encode));
         });
+        calcUsable(snowFlake, 62, 10);
+        calcUsable(snowFlake, 32, 12);
+        /**
+         * ==>时间位占用42bits，低位占用18bits的前提下:
+         * 采用雪花算法与Base62生成最多10位字符，最大使用年限：101.52438470376713
+         * 采用雪花算法与Base62生成恒定10位字符，最大使用年限：99.8868946279173
+         * 采用雪花算法与Base32生成最多12位字符，最大使用年限：139.4611400019977
+         * 采用雪花算法与Base32生成恒定12位字符，最大使用年限：135.1029793769343
+         *
+         * 时间位数减1，以上使用年限将减半
+         * 要想增加使用年限，使TIMESTAMP_LEFT_SHIFT变小即可
+         * 但是TIMESTAMP_LEFT_SHIFT变小，可扩展性、适用性能也随之减少。。。需要综合考虑使用！
+         *
+         * 42 + 18 = 60，高位还有3位空闲，可考虑移到低位使用，在保证使用年限的同时，增加可扩展性、适用性能
+         */
+    }
 
-        int maxChars = 10;
-        long timeMax = ((long) Math.pow(62, maxChars) - 1) >> snowFlake.TIMESTAMP_LEFT_SHIFT;
+    private static void calcUsable(SnowFlake snowFlake, int baseChars, int maxChars) {
+        int maxBits = Long.toBinaryString((long) Math.pow(baseChars, maxChars) - 1).length();
+        int leftShift = snowFlake.TIMESTAMP_LEFT_SHIFT;
+        System.out.println();
+        System.out.println("==>时间位占用"+(maxBits - leftShift)+"bits，低位占用"+leftShift+"bits的前提下:");
+        long timeMax = ((long) Math.pow(baseChars, maxChars) - 1 ) >> leftShift;
         double maxYears = timeMax / (365.00 * 24 * 3600 * 1000);
-        System.out.println("采用改装后的雪花算法与Base62生成" + maxChars + "位字符，最大使用年限：" + maxYears);
-        // 要想增加使用年限，使TIMESTAMP_LEFT_SHIFT变小即可
+        System.out.println("采用雪花算法与Base"+baseChars+"生成最多" + maxChars + "位字符，最大使用年限：" + maxYears);
+
+        timeMax = ((long) Math.pow(baseChars, maxChars) - 1  - ((long) Math.pow(baseChars, maxChars-1))) >> leftShift;
+        maxYears = timeMax / (365.00 * 24 * 3600 * 1000);
+        System.out.println("采用雪花算法与Base"+baseChars+"生成恒定" + maxChars + "位字符，最大使用年限：" + maxYears);
+
+        System.out.println("            最大值：" + ((long) Math.pow(baseChars, maxChars) - 1) + "（公式：Math.pow("+baseChars+", "+maxChars+") - 1）");
+        System.out.println("       最大值二进制：" + Long.toBinaryString((long) Math.pow(baseChars, maxChars) - 1));
+        System.out.println("最大值二进制有效占位：" + maxBits);
+        System.out.println("       高位空余位数：" + (Long.toBinaryString((long) Math.pow(2, 63) - 1).length() - Long.toBinaryString((long) Math.pow(baseChars, maxChars) - 1).length()));
     }
 }
