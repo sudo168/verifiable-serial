@@ -100,6 +100,19 @@ public class SnowFlake {
                 | sequence;                                            //序列号部分
     }
 
+    /**
+     * 解析ID构成
+     * @param id
+     * @return 时间戳毫秒数、数据中心、机器ID、序号
+     */
+    public long[] parseIdComposition(long id){
+        long seqNum = ((1L << SEQUENCE_BIT) - 1) & id;
+        long machine = ((1L << MACHINE_BIT) - 1) & (id >> MACHINE_LEFT_SHIFT);
+        long dataCenter = ((1L << DATA_CENTER_BIT) - 1) & (id >> DATA_CENTER_LEFT_SHIFT);
+        long timestamp = (id >> TIMESTAMP_LEFT_SHIFT)  + START_TIMESTAMP - minStep;
+        return new long[]{timestamp, dataCenter, machine, seqNum};
+    }
+
     private long getNextMill() {
         long mill = System.currentTimeMillis();
         while (mill <= lastTimestamp) {
